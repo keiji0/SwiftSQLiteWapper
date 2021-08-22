@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  DatabaseError.swift
 //  
 //
 //  Created by keiji0 on 2020/12/27.
@@ -16,3 +16,4 @@ public enum DatabaseError: Error {
     case closeFailed
     case notFound
 }
+

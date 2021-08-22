@@ -7,7 +7,7 @@
 
 import Foundation
 import SQLite3
-import SimpleLogger
+import os
 
 public final class Database {
     
@@ -45,7 +45,7 @@ public final class Database {
     
     public func open() throws {
         do {
-            Logger.info("SQLite open \(fileURL.path)")
+            Logger.main.info("open: version=\(self.version()!), path=\(self.fileURL.path)")
             try call { sqlite3_open_v2(fileURL.path, &handle, options.rawValue, nil) }
         } catch {
             try? close()
@@ -59,7 +59,7 @@ public final class Database {
     
     public func close() throws {
         defer { handle = nil }
-        Logger.info("SQLite close \(fileURL.path)")
+        Logger.main.info("close \(self.fileURL.path)")
         statements.removeAll()
         try call { return sqlite3_close(handle) }
     }
