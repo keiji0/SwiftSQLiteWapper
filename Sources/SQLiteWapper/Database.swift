@@ -82,7 +82,9 @@ public final class Database {
     public func exec(_ sql: String, _ params: [StatementParameter] = []) throws {
         assert(isOpen())
         if params.isEmpty {
-            try call { sqlite3_exec(handle, sql, nil, nil, nil) }
+            try call {
+                sqlite3_exec(handle, sql, nil, nil, nil)
+            }
         } else {
             try prepare(sql).bind(params).step()
         }
@@ -106,6 +108,14 @@ public final class Database {
         try query(sql, params, { statement in
             try statement.step()
         })
+    }
+    
+    public func count(_ sql: String, _ params: [StatementParameter] = []) throws -> Int {
+        try query(sql, params) { statment in
+            try statment.fetchRow { row in
+                row.column(0)
+            } ?? 0
+        }
     }
     
     public func begin() {
