@@ -108,29 +108,16 @@ public final class Database {
         })
     }
     
-    private func begin() {
+    public func begin() {
         defer { transactionNestLevel += 1 }
         guard transactionNestLevel == 0 else { return }
         try! exec("BEGIN;")
     }
     
-    private func end() {
+    public func end() {
         defer { transactionNestLevel -= 1 }
         guard transactionNestLevel == 1 else { return }
         try! exec("COMMIT;")
-    }
-    
-    public func transaction(_ block: () -> Void) {
-        begin()
-        defer { end() }
-        block()
-    }
-    
-    public func transaction<T>(_ block: () -> T) -> T {
-        begin()
-        defer { end() }
-        let res = block()
-        return res
     }
     
     @discardableResult
