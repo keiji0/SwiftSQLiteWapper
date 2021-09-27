@@ -64,6 +64,11 @@ public final class Database {
         try call { return sqlite3_close(handle) }
     }
     
+    public func setBusyTimeout(_ ms: Int32) {
+        assert(isOpen())
+        try! call { sqlite3_busy_timeout(handle, ms) }
+    }
+    
     public func changes() -> Int32 {
         assert(isOpen())
         return sqlite3_changes(handle)
