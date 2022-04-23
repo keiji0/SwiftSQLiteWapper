@@ -11,12 +11,6 @@ import os
 
 public final class Database {
     
-    var handle: OpaquePointer?
-    private let fileURL: URL
-    private var options: OpenOptions
-    private var transactionNestLevel: Int = 0
-    private var statements = [String: Statement]()
-
     public init(fileURL: URL, options: OpenOptions = .default) {
         self.fileURL = fileURL
         self.options = options
@@ -26,27 +20,11 @@ public final class Database {
         try? close()
     }
     
-    public struct OpenOptions: OptionSet {
-        public let rawValue: Int32
-        
-        public static let readOnly     = OpenOptions(rawValue: SQLITE_OPEN_READONLY)
-        public static let readWrite    = OpenOptions(rawValue: SQLITE_OPEN_READWRITE)
-        public static let create       = OpenOptions(rawValue: SQLITE_OPEN_CREATE)
-        public static let noMutex      = OpenOptions(rawValue: SQLITE_OPEN_NOMUTEX)
-        public static let fullMutex    = OpenOptions(rawValue: SQLITE_OPEN_FULLMUTEX)
-        public static let sharedCache  = OpenOptions(rawValue: SQLITE_OPEN_SHAREDCACHE)
-        public static let privateCache = OpenOptions(rawValue: SQLITE_OPEN_PRIVATECACHE)
-        public static let `default`: OpenOptions = [.readWrite, .create]
-
-        public init(rawValue: Int32) {
-            self.rawValue = rawValue
-        }
-    }
-    
     public func open() throws {
         do {
-            Logger.main.info("open: version=\(self.version()!), path=\(self.fileURL.path)")
+            Logger.main.info("Opening: version=\(Self.version ?? "<nil>"), path=\(self.fileURL.path)")
             try call { sqlite3_open_v2(fileURL.path, &handle, options.rawValue, nil) }
+            Logger.main.info("Open success: path=\(self.fileURL.path)")
         } catch {
             try? close()
             throw error
@@ -77,11 +55,6 @@ public final class Database {
     public func totalChanges() -> Int32 {
         assert(isOpen())
         return sqlite3_total_changes(handle)
-    }
-    
-    public func version() -> String? {
-        guard let cString = sqlite3_libversion() else { return nil }
-        return String(cString: cString)
     }
     
     public func exec(_ sql: String, _ params: [StatementParameter] = []) throws {
@@ -135,6 +108,27 @@ public final class Database {
         try! exec("COMMIT;")
     }
     
+    /// 定義されている全てのテーブル名を取得
+    public var tableNames: [String] {
+        let sql = "SELECT tbl_name FROM sqlite_master WHERE type='table'"
+        return try! prepare(sql).fetchRows {
+            $0.column(String.self, 0)
+        }
+    }
+    
+    // MARK: - Static
+    
+    public static var version: String? {
+        guard let cString = sqlite3_libversion() else { return nil }
+        return String(cString: cString)
+    }
+    
+    // MARK: - Internal
+    
+    var handle: OpaquePointer?
+    
+    /// sqliteのAPIをコールする
+    /// 適切なエラーコードに変換してくれる
     @discardableResult
     func call(block: () -> (Int32)) throws -> DatabaseResponse {
         let result = DatabaseResponse.code(for: block())
@@ -145,6 +139,13 @@ public final class Database {
             throw DatabaseError.api( code, String(cString: sqlite3_errmsg(handle)))
         }
     }
+    
+    // MARK: - Private
+    
+    private let fileURL: URL
+    private let options: OpenOptions
+    private var transactionNestLevel: Int = 0
+    private var statements = [String: Statement]()
     
     /// 同一SQL文のステートメントはキャッシュする。これによって10-20%ほど早くなった
     private func prepareSql(_ sql: String) -> Statement {
