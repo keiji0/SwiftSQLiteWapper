@@ -12,21 +12,28 @@ final class DatabaseTests: XCTestCase {
     
     func testOpen() {
         let dbFile = getTmpFile()
-        let db = Database(fileURL: dbFile)
-        try! db.open()
+        XCTAssertNoThrow(try Connection(dbFile))
         XCTAssertTrue(FileManager.default.fileExists(atPath: dbFile.path))
+    }
+    
+    func test_DB接続失敗() {
+        let dbFile = createNotWriteFile()
+        XCTAssertThrowsError(try Connection(dbFile))
     }
     
     func test_テーブル一覧を取得できる() {
         let dbFile = getTmpFile()
-        let db = Database(fileURL: dbFile)
-        try! db.open()
+        let db = try! Connection(dbFile)
         try! db.exec("CREATE TABLE TestTable ( date DATETIME );")
         XCTAssertEqual(db.tableNames, ["TestTable"])
     }
     
     private func getTmpFile() -> URL {
-        return URL(fileURLWithPath: NSTemporaryDirectory())
+        URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString)
+    }
+    
+    private func createNotWriteFile() -> URL {
+        URL(fileURLWithPath: "/").appendingPathComponent(UUID().uuidString)
     }
 }

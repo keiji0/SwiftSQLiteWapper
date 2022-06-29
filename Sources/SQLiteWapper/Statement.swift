@@ -11,11 +11,11 @@ import SQLite3
 public final class Statement {
     
     var handle: OpaquePointer?
-    weak var db: Database!
+    weak var connection: Connection!
     
-    public init(_ db: Database, sql: String) throws {
-        self.db = db
-        try db.call { sqlite3_prepare_v2(db.handle, sql, -1, &handle, nil) }
+    public init(_ connection: Connection, sql: String) throws {
+        self.connection = connection
+        try connection.call { sqlite3_prepare_v2(connection.handle, sql, -1, &handle, nil) }
     }
     
     deinit {
@@ -25,12 +25,12 @@ public final class Statement {
     @discardableResult
     public func step() throws -> DatabaseResponse {
         assert(handle != nil)
-        return try db.call { sqlite3_step(handle) }
+        return try connection.call { sqlite3_step(handle) }
     }
 
     public func reset() throws {
         assert(handle != nil)
-        try db.call { sqlite3_reset(handle) }
+        try connection.call { sqlite3_reset(handle) }
     }
 
     public func isNull(index: Int) -> Bool {

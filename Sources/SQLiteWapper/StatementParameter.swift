@@ -27,7 +27,7 @@ extension Int32 : StatementParameter {
     }
     
     public func bind(from statement: Statement, index: Int) throws {
-        try statement.db.call {
+        try statement.connection.call {
             sqlite3_bind_int(statement.handle, Int32(index), Int32(self))
         }
     }
@@ -40,7 +40,7 @@ extension Int64 : StatementParameter {
     }
 
     public func bind(from statement: Statement, index: Int) throws {
-        try statement.db.call {
+        try statement.connection.call {
             sqlite3_bind_int64(statement.handle, Int32(index), Int64(self))
         }
     }
@@ -73,7 +73,7 @@ extension Double : StatementParameter {
     }
 
     public func bind(from statement: Statement, index: Int) throws {
-        try statement.db.call {
+        try statement.connection.call {
             sqlite3_bind_double(statement.handle, Int32(index), self)
         }
     }
@@ -96,7 +96,7 @@ extension String : StatementParameter {
     }
 
     public func bind(from statement: Statement, index: Int) throws {
-        try statement.db.call {
+        try statement.connection.call {
             sqlite3_bind_text(statement.handle, Int32(index), self, -1, SQLITE_TRANSIENT)
         }
     }
@@ -114,7 +114,7 @@ extension Data : StatementParameter {
     }
     
     public func bind(from statement: Statement, index: Int) throws {
-        try statement.db.call {
+        try statement.connection.call {
             withUnsafeBytes { pointer in
                 sqlite3_bind_blob(statement.handle, Int32(index), pointer.baseAddress, Int32(self.count), SQLITE_TRANSIENT)
             }
@@ -150,7 +150,7 @@ extension Date : StatementParameter {
     }
     
     public func bind(from statement: Statement, index: Int) throws {
-        try statement.db.call {
+        try statement.connection.call {
             let date = Date.dateFormatter.string(from: self)
             return sqlite3_bind_text(statement.handle, Int32(index), date.cString(using: .utf8), -1, SQLITE_TRANSIENT)
         }

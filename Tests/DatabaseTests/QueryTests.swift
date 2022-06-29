@@ -4,26 +4,25 @@ import Foundation
 
 final class QueryTests: XCTestCase {
     
-    var db: Database!
+    var connection: Connection!
     
-    override func setUp() {
+    override func setUpWithError() throws {
         super.setUp()
         let dbFile = getTmpFile()
-        db = Database(fileURL: dbFile)
-        try! db.open()
+        connection = try Connection(dbFile)
      }
     
     override func tearDown() {
         super.tearDown()
-        try! db.close()
+        connection = nil
     }
     
     func testStatementDateParameter() {
         let now = Date()
         let formatter = ISO8601DateFormatter()
-        try! db.exec("CREATE TABLE TestTable ( date DATETIME );")
-        try! db.exec("INSERT INTO TestTable VALUES(?)", [ now ])
-        try! db.query("SELECT date FROM TestTable;", [], {
+        try! connection.exec("CREATE TABLE TestTable ( date DATETIME );")
+        try! connection.exec("INSERT INTO TestTable VALUES(?)", [ now ])
+        try! connection.query("SELECT date FROM TestTable;", [], {
             try! $0.fetchRow({
                 let a = formatter.string(from: now)
                 let b = formatter.string(from: $0.column(Date.self, 0))
@@ -43,9 +42,9 @@ final class QueryTests: XCTestCase {
         var id = 0
         for val in vals {
             let table = "Hoge\(id)"
-            try! db.exec("CREATE TABLE \(table) ( val DOUBLE );")
-            try! db.exec("INSERT INTO \(table) VALUES(?)", [ val ])
-            try! db.query("SELECT val FROM \(table);", [], {
+            try! connection.exec("CREATE TABLE \(table) ( val DOUBLE );")
+            try! connection.exec("INSERT INTO \(table) VALUES(?)", [ val ])
+            try! connection.query("SELECT val FROM \(table);", [], {
                 try! $0.fetchRow({
                     print($0.column(Double.self, 0), val.description)
                     XCTAssertEqual($0.column(Double.self, 0), val)
@@ -54,6 +53,38 @@ final class QueryTests: XCTestCase {
             id += 1
         }
     }
+    
+    func test_Cancelできる() {
+        let dbFile = getTmpFile()
+        
+        // 適当なテーブルを作っておく
+        do {
+            let connection = try! Connection(dbFile)
+            try! connection.exec("CREATE TABLE Hoge ( val );")
+        }
+        
+        // Commit前にキャンセルする
+        do {
+            let connection = try! Connection(dbFile)
+            
+            Task {
+                try! await Task.sleep(nanoseconds: 500_000_000)
+                connection.cancel()
+            }
+            
+            connection.begin()
+            try! connection.exec("INSERT INTO Hoge VALUES(?)", [ "abc" ])
+            sleep(1)
+        }
+        
+        // キャンセルが成功しているはずなのでInsertは無効になっているはず
+        do {
+            let connection = try! Connection(dbFile)
+            XCTAssertEqual(try! connection.count("SELECT COUNT(*) FROM Hoge"), 0)
+        }
+    }
+    
+    // MARK: -
     
     private func getTmpFile() -> URL {
         return URL(fileURLWithPath: NSTemporaryDirectory())

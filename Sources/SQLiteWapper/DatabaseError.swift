@@ -9,7 +9,6 @@ import Foundation
 
 /// データベースからのエラー
 public enum DatabaseError: Error {
-    
     case api(Int32, String)
     case notOpened
     case noStatementPrepared
