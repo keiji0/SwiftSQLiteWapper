@@ -11,9 +11,13 @@ import SQLite3
 import os
 
 /// データベースとの接続
-/// クエリはこのクラスから行う
+/// クエリはこのクラスから行う。参照が切れると自動的にデータベースはクローズされます
 public final class Connection {
     
+    /// 接続を開始
+    /// - Parameters:
+    ///   - fileURL: sqliteのファイルパス
+    ///   - options: 接続オプション一覧
     public init(_ fileURL: URL, _ options: OpenOptions = .default) throws {
         self.fileURL = fileURL
         self.options = options
@@ -38,16 +42,20 @@ public final class Connection {
         }
     }
     
+    /// テーブルがロックされている時のビジータイムを設定
+    /// - Parameter ms: ビジータイム（マイクロ秒）
+    /// マルチスレッド接続の場合にこの設定がないとSQLITE_BUSYが発生する
     public func setBusyTimeout(_ ms: Int32) {
         try! call { sqlite3_busy_timeout(handle, ms) }
     }
     
+    /// 変更された行の数を取得する
     public func changes() -> Int32 {
         sqlite3_changes(handle)
     }
     
     public func totalChanges() -> Int32 {
-        return sqlite3_total_changes(handle)
+        sqlite3_total_changes(handle)
     }
     
     public func exec(_ sql: String, _ params: [StatementParameter] = []) throws {
@@ -61,13 +69,13 @@ public final class Connection {
     }
     
     public func prepare(_ sql: String) throws -> Statement {
-        return try Statement(self, sql: sql)
+        try Statement(self, sql: sql)
     }
     
     /// DBにクエリを投げる。クエリのステートメントはキャッシュされる
     @discardableResult
     public func query<T>(_ sql: String, _ params: [StatementParameter], _ block: (Statement) throws -> T) throws -> T {
-        let statement = prepareSql(sql)
+        let statement = try prepareSql(sql)
         do {
             try statement.bind(params)
             let res = try block(statement)
@@ -85,6 +93,7 @@ public final class Connection {
         })
     }
     
+    /// クエリ結果行数を取得
     public func count(_ sql: String, _ params: [StatementParameter] = []) throws -> Int {
         try query(sql, params) { statment in
             try statment.fetchRow { row in
@@ -93,23 +102,24 @@ public final class Connection {
         }
     }
     
-    public func begin() {
+    public func begin() throws {
         defer { transactionNestLevel += 1 }
         guard transactionNestLevel == 0 else { return }
-        try! exec("BEGIN;")
+        try exec("BEGIN;")
     }
     
-    public func end() {
+    public func end() throws {
         defer { transactionNestLevel -= 1 }
         guard transactionNestLevel == 1 else { return }
-        try! exec("COMMIT;")
+        try exec("COMMIT;")
     }
     
     /// 定義されている全てのテーブル名を取得
     public var tableNames: [String] {
-        let sql = "SELECT tbl_name FROM sqlite_master WHERE type='table'"
-        return try! prepare(sql).fetchRows {
-            $0.column(String.self, 0)
+        get throws {
+            try prepare("SELECT tbl_name FROM sqlite_master WHERE type='table'").fetchRows {
+                $0.column(String.self, 0)
+            }
         }
     }
     
@@ -127,8 +137,8 @@ public final class Connection {
     /// sqliteのAPIをコールする
     /// エラーが発生すると例外を投げる
     @discardableResult
-    func call(block: () -> (Int32)) throws -> DatabaseResponse {
-        let result = DatabaseResponse.code(for: block())
+    func call(block: () -> (Int32)) throws -> QueryResult {
+        let result = QueryResult.code(for: block())
         switch result {
         case .ok, .done, .row:
             return result
@@ -145,11 +155,11 @@ public final class Connection {
     private var statements = [String: Statement]()
     
     /// 同一SQL文のステートメントはキャッシュする。これによって10-20%ほど早くなった
-    private func prepareSql(_ sql: String) -> Statement {
+    private func prepareSql(_ sql: String) throws -> Statement {
         if let statement = statements[sql] {
             return statement
         } else {
-            let statement = try! prepare(sql)
+            let statement = try prepare(sql)
             statements[sql] = statement
             return statement
         }

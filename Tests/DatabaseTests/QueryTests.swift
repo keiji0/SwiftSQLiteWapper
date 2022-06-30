@@ -68,7 +68,7 @@ final class QueryTests: XCTestCase {
             let connection = try! Connection(dbFile)
             
             
-            connection.begin()
+            try! connection.begin()
             let count = 500000
             let values = (0..<count).map{ _ in "(?)" }.joined(separator: ",")
             let params = (0..<count).map { _ in Int.random(in: 0...Int.max) }
@@ -84,7 +84,7 @@ final class QueryTests: XCTestCase {
                 XCTAssertTrue(($0 as! DatabaseError).code == .interrupt)
             }
             
-            connection.end()
+            try! connection.end()
         }
     }
     
