@@ -68,9 +68,15 @@ public final class Connection {
     @discardableResult
     public func query<T>(_ sql: String, _ params: [StatementParameter], _ block: (Statement) throws -> T) throws -> T {
         let statement = prepareSql(sql)
-        defer { try! statement.reset() }
-        try statement.bind(params)
-        return try block(statement)
+        do {
+            try statement.bind(params)
+            let res = try block(statement)
+            try statement.reset()
+            return res
+        } catch let e {
+            try statement.reset()
+            throw e
+        }
     }
     
     public func query(_ sql: String, _ params: [StatementParameter]) throws {
@@ -110,6 +116,7 @@ public final class Connection {
     /// キャンセル
     /// どのスレッドから実行しても問題ない
     public func cancel() {
+        Logger.main.info("cancel: path=\(self.fileURL.path)")
         sqlite3_interrupt(handle)
     }
     
@@ -118,7 +125,7 @@ public final class Connection {
     var handle: OpaquePointer?
     
     /// sqliteのAPIをコールする
-    /// 適切なエラーコードに変換してくれる
+    /// エラーが発生すると例外を投げる
     @discardableResult
     func call(block: () -> (Int32)) throws -> DatabaseResponse {
         let result = DatabaseResponse.code(for: block())
@@ -126,7 +133,7 @@ public final class Connection {
         case .ok, .done, .row:
             return result
         case .error(let code):
-            throw DatabaseError.api( code, String(cString: sqlite3_errmsg(handle)))
+            throw DatabaseError(code: code, message: String(cString: sqlite3_errmsg(handle)))
         }
     }
     

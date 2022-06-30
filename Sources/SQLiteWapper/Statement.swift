@@ -39,7 +39,7 @@ public final class Statement {
     }
     
     @discardableResult
-    public func bind(_ params: [StatementParameter]) throws -> Statement {
+    public func bind(_ params: some Collection<StatementParameter>) throws -> Statement {
         try params.enumerated().forEach { index, value in
             try value.bind(from: self, index: index + 1)
         }

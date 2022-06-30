@@ -67,20 +67,24 @@ final class QueryTests: XCTestCase {
         do {
             let connection = try! Connection(dbFile)
             
-            Task {
-                try! await Task.sleep(nanoseconds: 500_000_000)
-                connection.cancel()
-            }
             
             connection.begin()
-            try! connection.exec("INSERT INTO Hoge VALUES(?)", [ "abc" ])
-            sleep(1)
-        }
-        
-        // キャンセルが成功しているはずなのでInsertは無効になっているはず
-        do {
-            let connection = try! Connection(dbFile)
-            XCTAssertEqual(try! connection.count("SELECT COUNT(*) FROM Hoge"), 0)
+            let count = 500000
+            let values = (0..<count).map{ _ in "(?)" }.joined(separator: ",")
+            let params = (0..<count).map { _ in Int.random(in: 0...Int.max) }
+            
+            try! connection.exec("INSERT INTO Hoge VALUES \(values)", params)
+            
+            Task {
+                try! await Task.sleep(nanoseconds: 5_000_000)
+                connection.cancel()
+            }
+
+            XCTAssertThrowsError(try connection.count("SELECT COUNT(*) FROM Hoge WHERE val=?", [ "33" ])) {
+                XCTAssertTrue(($0 as! DatabaseError).code == .interrupt)
+            }
+            
+            connection.end()
         }
     }
     
@@ -90,4 +94,11 @@ final class QueryTests: XCTestCase {
         return URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString)
     }
+}
+
+func funcTime(action: () -> Void) {
+    let startDate = Date()
+    action()
+    let endDate = Date()
+    print("\(endDate.timeIntervalSince(startDate))")
 }

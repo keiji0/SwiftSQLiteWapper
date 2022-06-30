@@ -2,14 +2,6 @@ import XCTest
 @testable import SQLiteWapper
 
 final class DatabaseTests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-     }
-    
-    override func tearDown() {
-        super.tearDown()
-    }
-    
     func testOpen() {
         let dbFile = getTmpFile()
         XCTAssertNoThrow(try Connection(dbFile))
