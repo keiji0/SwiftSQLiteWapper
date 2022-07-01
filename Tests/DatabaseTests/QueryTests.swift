@@ -4,53 +4,70 @@ import Foundation
 
 final class QueryTests: XCTestCase {
     
-    var connection: Connection!
-    
-    override func setUpWithError() throws {
-        super.setUp()
-        let dbFile = getTmpFile()
-        connection = try Connection(dbFile)
-     }
-    
-    override func tearDown() {
-        super.tearDown()
-        connection = nil
+    func test_Intを保存できる() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value INTEGER );")
+        try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ 123 ])
+        XCTAssertEqual(try! connection.fetchValue("SELECT value FROM \(tableName)"), 123)
     }
     
-    func testStatementDateParameter() {
-        let now = Date()
-        let formatter = ISO8601DateFormatter()
-        try! connection.exec("CREATE TABLE TestTable ( date DATETIME );")
-        try! connection.exec("INSERT INTO TestTable VALUES(?)", [ now ])
-        try! connection.query("SELECT date FROM TestTable;", [], {
-            try! $0.fetchRow({
-                let a = formatter.string(from: now)
-                let b = formatter.string(from: $0.column(Date.self, 0))
-                XCTAssertEqual(a, b)
-            })
-        })
+    func test_Int32を保存できる() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value INTEGER );")
+        try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ Int32(321) ])
+        XCTAssertEqual(try! connection.fetchValue("SELECT value FROM \(tableName)"), Int32(321))
     }
     
-    func testStatementDoubleParameter() {
-        let now = Date()
-        let vals = [
-            Date().timeIntervalSince(now),
-            Date().timeIntervalSince(now),
-            Date().timeIntervalSince(now),
-            Date().timeIntervalSince(now),
-        ]
-        var id = 0
-        for val in vals {
-            let table = "Hoge\(id)"
-            try! connection.exec("CREATE TABLE \(table) ( val DOUBLE );")
-            try! connection.exec("INSERT INTO \(table) VALUES(?)", [ val ])
-            try! connection.query("SELECT val FROM \(table);", [], {
-                try! $0.fetchRow({
-                    print($0.column(Double.self, 0), val.description)
-                    XCTAssertEqual($0.column(Double.self, 0), val)
-                })
-            })
-            id += 1
+    func test_Doubleを保存できる() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value DOUBLE );")
+        try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ 123.0 ])
+        XCTAssertEqual(try! connection.fetchValue("SELECT value FROM \(tableName)"), 123.0)
+    }
+    
+    func test_Stringを保存できる() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value TEXT );")
+        try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ "123" ])
+        XCTAssertEqual(try! connection.fetchValue("SELECT value FROM \(tableName)"), "123")
+    }
+    
+    func test_Dataを保存できる() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value1, value2, value3 );")
+        try! connection.exec("INSERT INTO \(tableName) VALUES(?, ?, ?)", [ 1, 2, 3 ])
+        XCTAssertEqual(try! connection.query("SELECT value1 FROM \(tableName)").fetchRow()!.count, 1)
+        XCTAssertEqual(try! connection.query("SELECT value1, value2 FROM \(tableName)").fetchRow()!.count, 2)
+        XCTAssertEqual(try! connection.query("SELECT value1, value2, value3 FROM \(tableName)").fetchRow()!.count, 3)
+    }
+    
+    func test_カラム数を取得() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value BLOB );")
+        try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ "123".data(using: .utf8)! ])
+        XCTAssertEqual(try! connection.fetchValue("SELECT value FROM \(tableName)"), "123".data(using: .utf8)!)
+    }
+    
+    func test_行をシーケンスとして取得できる() {
+        let tableName = "TestTable"
+        let recoerds = ["1", "2", "3"]
+        
+        try! connection.exec("CREATE TABLE \(tableName) ( value TEXT );")
+        recoerds.forEach {
+            try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ $0 ])
+        }
+        
+        do {
+            let values: [String] = try! connection.query("SELECT value FROM \(tableName) ORDER BY value").fetchRows().map {
+                $0.value(0)!
+            }
+            XCTAssertEqual(values, recoerds)
+        }
+        do {
+            let values: [String] = try! connection.query("SELECT value FROM \(tableName) ORDER BY value DESC").fetchRows().map {
+                $0.value(0)!
+            }
+            XCTAssertEqual(values, recoerds.reversed())
         }
     }
     
@@ -98,6 +115,10 @@ final class QueryTests: XCTestCase {
     }
     
     // MARK: -
+    
+    private lazy var connection: Connection = {
+        try! .init(getTmpFile())
+    }()
     
     private func getTmpFile() -> URL {
         return URL(fileURLWithPath: NSTemporaryDirectory())

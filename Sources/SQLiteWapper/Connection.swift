@@ -54,71 +54,43 @@ public final class Connection {
         sqlite3_changes(handle)
     }
     
-    public func totalChanges() -> Int32 {
-        sqlite3_total_changes(handle)
+    /// 値の更新がないSQL実行
+    public func exec(_ sql: String, _ params: [Value] = []) throws {
+        let stmt = try query(sql, params)
+        try _ = stmt.step()
+        try stmt.reset()
     }
     
-    public func exec(_ sql: String, _ params: [StatementParameter] = []) throws {
-        if params.isEmpty {
-            try call {
-                sqlite3_exec(handle, sql, nil, nil, nil)
-            }
-        } else {
-            try prepare(sql).bind(params).step()
+    /// クエリ送信
+    public func query(_ sql: String, _ params: [Value] = []) throws -> Statement {
+        let stmt = try prepareSql(sql)
+        try stmt.bind(params)
+        return stmt
+    }
+    
+    /// 単一の値を取得
+    public func fetchValue<T: Value>(_ sql: String, _ params: [Value] = []) throws -> T? {
+        let stmt = try query(sql, params)
+        return try stmt.fetchRow()?.value(0)
+    }
+    
+    /// 取得した行一覧から値一覧を取得
+    public func fetchValues<T: Value>(_ sql: String, _ params: [Value] = []) throws -> [T] {
+        let stmt = try query(sql, params)
+        return try stmt.fetchRows().compactMap {
+            $0.value(0)
         }
-    }
-    
-    public func prepare(_ sql: String) throws -> Statement {
-        try Statement(self, sql: sql)
-    }
-    
-    /// DBにクエリを投げる。クエリのステートメントはキャッシュされる
-    @discardableResult
-    public func query<T>(_ sql: String, _ params: [StatementParameter], _ block: (Statement) throws -> T) throws -> T {
-        let statement = try prepareSql(sql)
-        do {
-            try statement.bind(params)
-            let res = try block(statement)
-            try statement.reset()
-            return res
-        } catch let e {
-            try statement.reset()
-            throw e
-        }
-    }
-    
-    public func query(_ sql: String, _ params: [StatementParameter]) throws {
-        try query(sql, params, { statement in
-            try statement.step()
-        })
     }
     
     /// クエリ結果行数を取得
-    public func count(_ sql: String, _ params: [StatementParameter] = []) throws -> Int {
-        try query(sql, params) { statment in
-            try statment.fetchRow { row in
-                row.column(Int.self, 0)
-            } ?? 0
-        }
-    }
-    
-    public func begin() throws {
-        defer { transactionNestLevel += 1 }
-        guard transactionNestLevel == 0 else { return }
-        try exec("BEGIN;")
-    }
-    
-    public func end() throws {
-        defer { transactionNestLevel -= 1 }
-        guard transactionNestLevel == 1 else { return }
-        try exec("COMMIT;")
+    public func count(_ sql: String, _ params: [Value] = []) throws -> Int {
+        try fetchValue(sql, params) ?? 0
     }
     
     /// 定義されている全てのテーブル名を取得
+    /// システムよりの処理なので失敗しても例外は発生せず、空配列を返す
     public var tableNames: [String] {
-        (try? prepare("SELECT tbl_name FROM sqlite_master WHERE type='table'").fetchRows {
-            $0.column(String.self, 0)
-        }) ?? []
+        (try? fetchValues("SELECT tbl_name FROM sqlite_master WHERE type='table'")) ?? []
     }
     
     /// 指定テーブルが定義されているか？
@@ -129,7 +101,6 @@ public final class Connection {
     /// キャンセル
     /// どのスレッドから実行しても問題ない
     public func cancel() {
-        Logger.main.info("cancel: path=\(self.fileURL.path)")
         sqlite3_interrupt(handle)
     }
     
@@ -139,16 +110,28 @@ public final class Connection {
     /// 未設定の場合は0が設定されている
     public var userVersion: Int64 {
         get {
-            try! query("PRAGMA user_version", []) {
-                try $0.fetchRow {
-                    $0.isNull(0) ? 0 : $0.column(0)
-                } ?? 0
-            }
+            (try? fetchValue("PRAGMA user_version")) ?? 0
         }
         set {
             try! exec("PRAGMA user_version = \(newValue)")
         }
     }
+    
+    /// トランザクションの開始
+    /// トランザクションが入れ子になっている場合はトップレベルのトランザクションが閉じられないとCommitされない
+    public func begin() throws {
+        defer { transactionNestLevel += 1 }
+        guard transactionNestLevel == 0 else { return }
+        try exec("BEGIN;")
+    }
+    
+    /// トランザクションの終了
+    public func end() throws {
+        defer { transactionNestLevel -= 1 }
+        guard transactionNestLevel == 1 else { return }
+        try exec("COMMIT;")
+    }
+    
     
     // MARK: - Internal
     
@@ -184,4 +167,10 @@ public final class Connection {
             return statement
         }
     }
+    
+    /// ステートメントを作成する
+    private func prepare(_ sql: String) throws -> Statement {
+        try Statement(self, sql: sql)
+    }
+    
 }

@@ -17,7 +17,7 @@ final class DatabaseTests: XCTestCase {
         let dbFile = getTmpFile()
         let db = try! Connection(dbFile)
         try! db.exec("CREATE TABLE TestTable ( date DATETIME );")
-        XCTAssertEqual(try! db.tableNames, ["TestTable"])
+        XCTAssertEqual(db.tableNames, ["TestTable"])
     }
     
     private func getTmpFile() -> URL {
