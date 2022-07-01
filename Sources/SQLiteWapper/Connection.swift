@@ -24,14 +24,14 @@ public final class Connection {
         do {
             Logger.main.info("Opening: version=\(Database.version ?? "<nil>"), path=\(self.fileURL.path)")
             try call { sqlite3_open_v2(fileURL.path, &handle, options.rawValue, nil) }
-            Logger.main.info("Open success: path=\(self.fileURL.path)")
+            Logger.main.trace("Open success: path=\(self.fileURL.path)")
         } catch {
             throw error
         }
     }
     
     deinit {
-        Logger.main.info("close \(self.fileURL.path)")
+        Logger.main.trace("close \(self.fileURL.path)")
         statements.removeAll()
         do {
             try call {
