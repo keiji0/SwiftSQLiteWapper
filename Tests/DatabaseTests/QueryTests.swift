@@ -88,6 +88,15 @@ final class QueryTests: XCTestCase {
         }
     }
     
+    func test_UserVersionはデフォルトは0() {
+        XCTAssertEqual(connection.userVersion, 0)
+    }
+    
+    func test_UserVersionが使用できる() {
+        connection.userVersion = 8
+        XCTAssertEqual(connection.userVersion, 8)
+    }
+    
     // MARK: -
     
     private func getTmpFile() -> URL {

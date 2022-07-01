@@ -130,6 +130,23 @@ public final class Connection {
         sqlite3_interrupt(handle)
     }
     
+    /// ユーザーバージョン
+    /// SQLite内部で使用されないユーザーが自由に設定できるバージョン
+    /// 独自のバージョン管理を行いたい場合などに使用する
+    /// 未設定の場合は0が設定されている
+    public var userVersion: Int64 {
+        get {
+            try! query("PRAGMA user_version", []) {
+                try $0.fetchRow {
+                    $0.isNull(0) ? 0 : $0.column(0)
+                } ?? 0
+            }
+        }
+        set {
+            try! exec("PRAGMA user_version = \(newValue)")
+        }
+    }
+    
     // MARK: - Internal
     
     var handle: OpaquePointer?

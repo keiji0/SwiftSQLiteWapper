@@ -134,7 +134,7 @@ extension Date : StatementParameter {
     }()
     
     public init(from statement: Statement, index: Int) {
-        guard !statement.isNull(index: index),
+        guard !statement.isNull(index),
               let pointer = sqlite3_column_text(statement.handle, Int32(index)) else {
             self = Date.distantPast
             return

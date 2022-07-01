@@ -39,7 +39,7 @@ public final class Statement {
         }
     }
 
-    public func isNull(index: Int) -> Bool {
+    public func isNull(_ index: Int) -> Bool {
         assert(handle != nil)
         return sqlite3_column_type(handle, Int32(index)) == SQLITE_NULL
     }
