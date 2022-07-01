@@ -116,11 +116,14 @@ public final class Connection {
     
     /// 定義されている全てのテーブル名を取得
     public var tableNames: [String] {
-        get throws {
-            try prepare("SELECT tbl_name FROM sqlite_master WHERE type='table'").fetchRows {
-                $0.column(String.self, 0)
-            }
-        }
+        (try? prepare("SELECT tbl_name FROM sqlite_master WHERE type='table'").fetchRows {
+            $0.column(String.self, 0)
+        }) ?? []
+    }
+    
+    /// 指定テーブルが定義されているか？
+    public func hasTable(_ tableName: String) -> Bool {
+        tableNames.contains(tableName)
     }
     
     /// キャンセル
