@@ -48,6 +48,16 @@ final class QueryTests: XCTestCase {
         XCTAssertEqual(try! connection.fetchValue("SELECT value FROM \(tableName)"), "123".data(using: .utf8)!)
     }
     
+    func test_ロールバックできる() {
+        let tableName = "TestTable"
+        try! connection.exec("CREATE TABLE \(tableName) ( value )")
+        try? connection.begin {
+            try! connection.exec("INSERT INTO \(tableName) VALUES(?)", [ "123" ])
+            throw DummyError()
+        }
+        XCTAssertEqual(try! connection.count("SELECT COUNT(*) FROM \(tableName)"), 0)
+    }
+    
     func test_行をシーケンスとして取得できる() {
         let tableName = "TestTable"
         let recoerds = ["1", "2", "3"]
@@ -84,8 +94,6 @@ final class QueryTests: XCTestCase {
         do {
             let connection = try! Connection(dbFile)
             
-            
-            try! connection.begin()
             let count = 500000
             let values = (0..<count).map{ _ in "(?)" }.joined(separator: ",")
             let params = (0..<count).map { _ in Int.random(in: 0...Int.max) }
@@ -100,8 +108,6 @@ final class QueryTests: XCTestCase {
             XCTAssertThrowsError(try connection.count("SELECT COUNT(*) FROM Hoge WHERE val=?", [ "33" ])) {
                 XCTAssertTrue(($0 as! DatabaseError).code == .interrupt)
             }
-            
-            try! connection.end()
         }
     }
     
@@ -123,6 +129,9 @@ final class QueryTests: XCTestCase {
     private func getTmpFile() -> URL {
         return URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString)
+    }
+    
+    private struct DummyError: Error {
     }
 }
 

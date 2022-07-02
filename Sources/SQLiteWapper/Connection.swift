@@ -117,21 +117,26 @@ public final class Connection {
         }
     }
     
-    /// トランザクションの開始
-    /// トランザクションが入れ子になっている場合はトップレベルのトランザクションが閉じられないとCommitされない
-    public func begin() throws {
-        defer { transactionNestLevel += 1 }
-        guard transactionNestLevel == 0 else { return }
-        try exec("BEGIN;")
+    /// トランザクション処理
+    public func begin(_ block: () throws -> Void) throws {
+        try begin()
+        do {
+            try block()
+            try end()
+        } catch let e {
+            rollback()
+            throw e
+        }
     }
     
-    /// トランザクションの終了
-    public func end() throws {
-        defer { transactionNestLevel -= 1 }
-        guard transactionNestLevel == 1 else { return }
-        try exec("COMMIT;")
+    /// トランザクション(値を返す)
+    public func begin<T>(_ block: () throws -> T) throws -> T {
+        var res: T?
+        try begin {
+            res = try block()
+        }
+        return res!
     }
-    
     
     // MARK: - Internal
     
@@ -173,4 +178,33 @@ public final class Connection {
         try Statement(self, sql: sql)
     }
     
+    /// トランザクション中か？
+    private var isTransaction: Bool {
+        0 < transactionNestLevel
+    }
+    
+    /// トランザクションの開始
+    /// トランザクションが入れ子になっている場合はトップレベルのトランザクションが閉じられないとCommitされない
+    private func begin() throws {
+        defer { transactionNestLevel += 1 }
+        guard transactionNestLevel == 0 else { return }
+        try exec("BEGIN;")
+    }
+    
+    /// ロールバックする
+    private func rollback() {
+        guard isTransaction else {
+            return
+        }
+        try? exec("ROLLBACK;")
+        transactionNestLevel = 0
+    }
+    
+    /// トランザクションの終了
+    private func end() throws {
+        assert(isTransaction)
+        defer { transactionNestLevel -= 1 }
+        guard transactionNestLevel == 1 else { return }
+        try exec("COMMIT;")
+    }
 }
