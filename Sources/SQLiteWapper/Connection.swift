@@ -54,7 +54,7 @@ public final class Connection {
         sqlite3_changes(handle)
     }
     
-    /// 値の更新がないSQL実行
+    ///  値の取得がないクエリ
     public func exec(_ sql: String, _ params: [Value] = []) throws {
         let stmt = try query(sql, params)
         try _ = stmt.step()
@@ -63,6 +63,7 @@ public final class Connection {
     
     /// クエリ送信
     public func query(_ sql: String, _ params: [Value] = []) throws -> Statement {
+        Logger.main.trace("query: \(sql), \(params)")
         let stmt = try prepareSql(sql)
         try stmt.bind(params)
         return stmt
