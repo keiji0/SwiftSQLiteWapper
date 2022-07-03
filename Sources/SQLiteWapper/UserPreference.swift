@@ -58,6 +58,11 @@ public final class UserPreference {
         )
     }
     
+    /// 全てのデータを消去する
+    public func removeAll() throws {
+        try connection.exec("DELETE FROM \(tableName)")
+    }
+    
     // MARK: - Private
     
     private let connection: Connection

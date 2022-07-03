@@ -35,6 +35,13 @@ final class UserPreferenceTests: XCTestCase {
         XCTAssertEqual(userPreference.keys, ["a", "b"])
     }
     
+    func test_全てのデータを消去できる() {
+        try! userPreference.set("a", "123")
+        try! userPreference.set("b", "321")
+        try! userPreference.removeAll()
+        XCTAssertEqual(userPreference.keys, [])
+    }
+    
     // MARK: -
     
     private lazy var userPreference: UserPreference = {
