@@ -22,7 +22,7 @@ public final class Connection {
         self.fileURL = fileURL
         self.options = options
         do {
-            Logger.main.info("Opening: version=\(Database.version ?? "<nil>"), path=\(self.fileURL.path)")
+            Logger.main.info("Opening version=\(Database.version ?? "<nil>"), path=\(self.fileURL.path), thread=\(Thread.current)")
             try call { sqlite3_open_v2(fileURL.path, &handle, options.rawValue, nil) }
             Logger.main.trace("Open success: path=\(self.fileURL.path)")
         } catch {
@@ -31,7 +31,7 @@ public final class Connection {
     }
     
     deinit {
-        Logger.main.trace("close \(self.fileURL.path)")
+        Logger.main.trace("Close \(self.fileURL.path), thread=\(Thread.current)")
         statements.removeAll()
         do {
             try call {
@@ -63,7 +63,7 @@ public final class Connection {
     
     /// クエリ送信
     public func query(_ sql: String, _ params: [Value] = []) throws -> Statement {
-        Logger.main.trace("query: \(sql), \(params)")
+        Logger.main.trace("query(\(Thread.current)): \(sql), \(params)")
         let stmt = try prepareSql(sql)
         try stmt.bind(params)
         return stmt
