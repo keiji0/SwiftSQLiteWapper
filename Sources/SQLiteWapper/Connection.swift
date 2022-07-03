@@ -61,7 +61,13 @@ public final class Connection {
         try stmt.reset()
     }
     
+    /// ステートメントの削除
+    public func clearStatement() {
+        statements.removeAll()
+    }
+    
     /// クエリ送信
+    /// ステートメントはキャッシュされるため、スキーマ変更前のタイミングではclearStatementしておくと安全
     public func query(_ sql: String, _ params: [Value] = []) throws -> Statement {
         Logger.main.trace("query(\(Thread.current)): \(sql), \(params)")
         let stmt = try prepareSql(sql)
@@ -174,6 +180,11 @@ public final class Connection {
         }
     }
     
+    /// ステートメントの削除
+    private func removeStatement(_ sql: String) {
+        statements[sql] = nil
+    }
+    
     /// ステートメントを作成する
     private func prepare(_ sql: String) throws -> Statement {
         try Statement(self, sql: sql)
@@ -189,7 +200,7 @@ public final class Connection {
     private func begin() throws {
         defer { transactionNestLevel += 1 }
         guard transactionNestLevel == 0 else { return }
-        try exec("BEGIN;")
+        try exec("BEGIN")
     }
     
     /// ロールバックする
@@ -197,7 +208,7 @@ public final class Connection {
         guard isTransaction else {
             return
         }
-        try? exec("ROLLBACK;")
+        try? exec("ROLLBACK")
         transactionNestLevel = 0
     }
     
@@ -206,6 +217,6 @@ public final class Connection {
         assert(isTransaction)
         defer { transactionNestLevel -= 1 }
         guard transactionNestLevel == 1 else { return }
-        try exec("COMMIT;")
+        try exec("COMMIT")
     }
 }
