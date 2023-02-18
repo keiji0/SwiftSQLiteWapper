@@ -20,6 +20,12 @@ final class DatabaseTests: XCTestCase {
         XCTAssertEqual(db.tableNames, ["TestTable"])
     }
     
+    func test_インメモリで開くことができる() {
+        let db = try! Connection(":memory:")
+        try! db.exec("CREATE TABLE TestTable ( date DATETIME );")
+        XCTAssertEqual(db.tableNames, ["TestTable"])
+    }
+    
     private func getTmpFile() -> URL {
         URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString)

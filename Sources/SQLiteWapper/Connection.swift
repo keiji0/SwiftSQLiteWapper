@@ -18,20 +18,24 @@ public final class Connection {
     /// - Parameters:
     ///   - fileURL: sqliteのファイルパス
     ///   - options: 接続オプション一覧
-    public init(_ fileURL: URL, _ options: OpenOptions = .default) throws {
-        self.fileURL = fileURL
+    public init(_ path: String, _ options: OpenOptions = .default) throws {
+        self.path = path
         self.options = options
         do {
-            Logger.main.info("Opening version=\(Database.version ?? "<nil>"), path=\(self.fileURL.path), thread=\(Thread.current)")
-            try call { sqlite3_open_v2(fileURL.path, &handle, options.rawValue, nil) }
-            Logger.main.trace("Open success: path=\(self.fileURL.path)")
+            Logger.main.info("Opening version=\(Database.version ?? "<nil>"), path=\(path), thread=\(Thread.current)")
+            try call { sqlite3_open_v2(path, &handle, options.rawValue, nil) }
+            Logger.main.trace("Open success: path=\(path)")
         } catch {
             throw error
         }
     }
     
+    public convenience init(_ fileURL: URL, _ options: OpenOptions = .default) throws {
+        try self.init(fileURL.path, options)
+    }
+    
     deinit {
-        Logger.main.trace("Close \(self.fileURL.path), thread=\(Thread.current)")
+        Logger.main.trace("Close \(self.path), thread=\(Thread.current)")
         statements.removeAll()
         do {
             try call {
@@ -164,7 +168,7 @@ public final class Connection {
     
     // MARK: - Private
     
-    private let fileURL: URL
+    private let path: String
     private let options: OpenOptions
     private var transactionNestLevel: Int = 0
     private var statements = [String: Statement]()
