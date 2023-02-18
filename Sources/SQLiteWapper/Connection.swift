@@ -30,8 +30,14 @@ public final class Connection {
         }
     }
     
-    public convenience init(_ fileURL: URL, _ options: OpenOptions = .default) throws {
-        try self.init(fileURL.path, options)
+    /// URL指定で接続を開始
+    public convenience init(_ url: URL, _ options: OpenOptions = .default) throws {
+        try self.init(url.path, options)
+    }
+    
+    /// インメモリでデータベースに接続
+    public convenience init(_ options: OpenOptions = .default) throws {
+        try self.init(":memory:", options)
     }
     
     deinit {

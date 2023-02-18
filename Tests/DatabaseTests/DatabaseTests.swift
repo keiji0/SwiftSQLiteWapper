@@ -21,7 +21,7 @@ final class DatabaseTests: XCTestCase {
     }
     
     func test_インメモリで開くことができる() {
-        let db = try! Connection(":memory:")
+        let db = try! Connection()
         try! db.exec("CREATE TABLE TestTable ( date DATETIME );")
         XCTAssertEqual(db.tableNames, ["TestTable"])
     }
